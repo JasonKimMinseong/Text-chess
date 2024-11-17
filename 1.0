@@ -1,0 +1,123 @@
+# First, install the chess library (you only need to run this once)
+!pip install chess
+
+import chess
+import random
+
+# Initialize the board, player lives, and move counter
+board = chess.Board()
+lives = 5
+
+# Set the player's color with a 73:27 probability for White:Black
+player_color = chess.WHITE if random.choices([chess.WHITE, chess.BLACK], [73, 27])[0] == chess.WHITE else chess.BLACK
+ai_color = not player_color
+color_names = {chess.WHITE: "White", chess.BLACK: "Black"}
+move_number = 1
+move_history = []
+
+# Notify the player about their color and board numbering system if Black
+print(f"Welcome to Text Chess! You are playing as {color_names[player_color]}.")
+if player_color == chess.BLACK:
+    print("Note: The board will be flipped for you, and coordinates will be displayed as follows:")
+    print("""
+       up                 down
+       1  2  3  4  5  6  7  8
+       left              right
+       h  g  f  e  d  c  b  a
+    """)
+print("You have 5 lives. Lose one life every time you make an incorrect move. Lose all, and the game is over.")
+print("Good luck!\n")
+
+def ai_move():
+    # Ensure AI selects only from legal moves
+    legal_moves = list(board.legal_moves)
+    if not legal_moves:
+        return None
+    move = random.choice(legal_moves)
+    board.push(move)
+    return move
+
+def check_move(move_input):
+    # Check if player's move is legal
+    try:
+        move = board.parse_san(move_input)
+        if move in board.legal_moves:
+            return move
+        else:
+            print("Invalid move: Move is not allowed by current board position.")
+            return None
+    except ValueError:
+        print("Invalid move: Unrecognized move format.")
+        return None
+
+def display_board():
+    # Display the board, flipped for Black
+    if player_color == chess.BLACK:
+        print(board.transform(chess.flip_vertical).transform(chess.flip_horizontal))
+    else:
+        print(board)
+
+def play_game():
+    global lives, move_number, move_history
+    while not board.is_game_over():
+        print("\nCurrent Board:")
+        display_board()
+
+        # Player's turn
+        if board.turn == player_color:
+            move_input = input(f"Your move {move_number}: ")
+            move = check_move(move_input)
+            if move:
+                board.push(move)
+                move_history.append(f"{move_input}")
+            else:
+                lives -= 1
+                print(f"Incorrect move. Lives remaining: {lives}")
+                if lives == 0:
+                    print("You've lost all your lives! Game over.")
+                    retry = input("Do you want to try again? (yes/no): ").strip().lower()
+                    if retry == "yes":
+                        reset_game()
+                    else:
+                        break
+                continue
+        else:
+            # AI's turn
+            move = ai_move()
+            if move:
+                ai_move_uci = move.uci()[2:]  # Get the AI move in a more readable format
+                print(f"AI’s Move {move_number}: {ai_move_uci}")
+                move_history.append(ai_move_uci)
+
+        # Only increment move_number and print history after both player and AI moves are made
+        if len(move_history) % 2 == 0:
+            print(f"Move {move_number}: {move_history[-2]}, {move_history[-1]}")
+            move_number += 1
+
+        # Check for game-ending conditions
+        if board.is_checkmate():
+            if board.turn == player_color:
+                print("Checkmate! You lost.")
+            else:
+                print("Congratulations! You've checkmated the AI and won the game!")
+            break
+        elif board.is_stalemate():
+            print("Stalemate! The game is a draw.")
+            break
+        elif board.is_insufficient_material():
+            print("Draw due to insufficient material.")
+            break
+        elif board.is_seventyfive_moves() or board.is_fivefold_repetition():
+            print("Draw by repetition or 75-move rule.")
+            break
+
+def reset_game():
+    global board, lives, move_number, move_history
+    board = chess.Board()
+    lives = 5
+    move_number = 1
+    move_history = []
+    play_game()
+
+# Start the game
+play_game()
